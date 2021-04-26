@@ -2,18 +2,12 @@
 LinkedIn Authentication
 """
 
-from oauthclient import client
-
-from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect
-
-from helios_auth import utils
-
 from xml.etree import ElementTree
 
-import logging
-
 from django.conf import settings
+
+from .oauthclient import client
+
 API_KEY = settings.LINKEDIN_API_KEY
 API_SECRET = settings.LINKEDIN_API_SECRET
 
@@ -89,3 +83,10 @@ def send_notification(user_id, user_info, message):
   pass
 
 
+
+#
+# Election Creation
+#
+
+def can_create_election(user_id, user_info):
+  return True

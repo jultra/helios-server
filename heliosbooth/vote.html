@@ -24,7 +24,7 @@
   <script language="javascript" src="js/jscrypto/sha2.js"></script>
   <script language="javascript" src="js/jscrypto/helios.js"></script>-->
   
-  <script language="javascript" src="js/20140302-helios-booth-compressed.js"></script>
+  <script language="javascript" src="js/20160507-helios-booth-compressed.js"></script>
 </head>
 <body>
 <div id="wrapper">
@@ -48,7 +48,6 @@ BOOTH.setup_templates = function() {
     $('#header').setTemplateURL("templates/header.html" + cache_bust);
     $('#election_div').setTemplateURL("templates/election.html" + cache_bust);
     $('#question_div').setTemplateURL("templates/question.html" + cache_bust);
-    $('#confirm_div').setTemplateURL("templates/confirm.html" + cache_bust);
     $('#seal_div').setTemplateURL("templates/seal.html" + cache_bust);
     $('#audit_div').setTemplateURL("templates/audit.html" + cache_bust);
     $('#footer').setTemplateURL("templates/footer.html" + cache_bust);
@@ -117,35 +116,32 @@ BOOTH.setup_workers = function(election_raw_json) {
       // and one worker per question
       BOOTH.encrypted_answers = [];
       BOOTH.answer_timestamps = [];
-      BOOTH.workers = [];
+      BOOTH.worker = new window.Worker("boothworker-single.js");
+      BOOTH.worker.postMessage({
+        'type': 'setup',
+        'election' : election_raw_json
+      });
+
+      BOOTH.worker.onmessage = function(event) {
+        // logging
+        if (event.data.type == 'log')
+          return BOOTH.log(event.data.msg);
+
+        // result of encryption
+        if (event.data.type == 'result') {
+          // this check ensures that race conditions
+          // don't screw up votes.
+          if (event.data.id == BOOTH.answer_timestamps[event.data.q_num]) {
+            BOOTH.encrypted_answers[event.data.q_num] = HELIOS.EncryptedAnswer.fromJSONObject(event.data.encrypted_answer, BOOTH.election);
+            BOOTH.log("got encrypted answer " + event.data.q_num);
+          } else {
+            BOOTH.log("no way jose");
+          }
+        }
+      };
+
       $(BOOTH.election.questions).each(function(q_num, q) {
         BOOTH.encrypted_answers[q_num] = null;
-        var new_worker = new window.Worker("boothworker.js");
-        new_worker.postMessage({
-          'type': 'setup',
-          'election' : election_raw_json,
-          'question_num' : q_num
-        });
-
-        new_worker.onmessage = function(event) {
-           // logging
-           if (event.data.type == 'log')
-             return BOOTH.log(event.data.msg);
-
-           // result of encryption
-           if (event.data.type == 'result') {
-             // this check ensures that race conditions
-             // don't screw up votes.
-             if (event.data.id == BOOTH.answer_timestamps[q_num]) {
-                BOOTH.encrypted_answers[q_num] = HELIOS.EncryptedAnswer.fromJSONObject(event.data.encrypted_answer, BOOTH.election);
-                BOOTH.log("got encrypted answer " + q_num);
-             } else {
-                BOOTH.log("no way jose");
-             }
-           }
-        };
-
-        BOOTH.workers[q_num] = new_worker;
       });
   }
 };
@@ -216,8 +212,9 @@ BOOTH.launch_async_encryption_answer = function(question_num) {
    BOOTH.answer_timestamps[question_num] = new Date().getTime();
    BOOTH.encrypted_answers[question_num] = null;
    BOOTH.dirty[question_num] = false;
-   BOOTH.workers[question_num].postMessage({
+   BOOTH.worker.postMessage({
       'type' : 'encrypt',
+      'q_num': question_num,
       'answer' : BOOTH.ballot.answers[question_num],
       'id' : BOOTH.answer_timestamps[question_num]
    });
@@ -245,7 +242,7 @@ BOOTH.validate_question = function(question_num) {
 
 BOOTH.validate_and_confirm = function(question_num) {
   if (BOOTH.validate_question(question_num)) {
-      BOOTH.show_confirm();
+      BOOTH.seal_ballot();
   }
 };
 
@@ -360,7 +357,7 @@ BOOTH.show_processing_before = function(str_to_execute) {
 };
 
 BOOTH.show_encryption_message_before = function(func_to_execute) {
-    BOOTH.show_progress('3');
+    BOOTH.show_progress('2');
     BOOTH.show($('#encrypting_div'));
 
     func_to_execute();
@@ -442,13 +439,6 @@ $(document).ready(function() {
     BigInt.setup(BOOTH.so_lets_go, BOOTH.nojava);
 });
 
-BOOTH.show_confirm = function() {
-    // process the answers
-    var choices = BALLOT.pretty_choices(BOOTH.election, BOOTH.ballot);
-
-    BOOTH.show($('#confirm_div')).processTemplate({'questions' : BOOTH.election.questions, 'choices' : choices});
-    BOOTH.show_progress('2');
-};
 
 BOOTH.check_encryption_status = function() {
   var progress = BOOTH.progress.progress();
@@ -474,7 +464,9 @@ BOOTH._after_ballot_encryption = function() {
         'election_uuid' : BOOTH.election.uuid,
         'election_hash' : BOOTH.election_hash,
         'election': BOOTH.election,
-        'election_metadata': BOOTH.election_metadata});
+        'election_metadata': BOOTH.election_metadata,
+        'questions' : BOOTH.election.questions,
+        'choices' : BALLOT.pretty_choices(BOOTH.election, BOOTH.ballot)});
       BOOTH.show($('#seal_div'));
       BOOTH.encrypted_vote_json = null;
     };
@@ -621,9 +613,6 @@ BOOTH.do_done = function() {
   </div>
 
   <div id="question_div" class="panel">
-  </div>
-
-  <div id="confirm_div" class="panel">
   </div>
 
   <div id="processing_div" class="panel" style="display:none;">

@@ -1,18 +1,25 @@
 
-import os, json
+# a massive hack to see if we're testing, in which case we use different settings
+import sys
+
+import json
+import os
+
+TESTING = 'test' in sys.argv
 
 # go through environment variables and override them
 def get_from_env(var, default):
-    if os.environ.has_key(var):
+    if not TESTING and var in os.environ:
         return os.environ[var]
     else:
         return default
 
 DEBUG = (get_from_env('DEBUG', '1') == '1')
-TEMPLATE_DEBUG = DEBUG
 
+# add admins of the form: 
+#    ('Ben Adida', 'ben@adida.net'),
+# if you want to be emailed about errors.
 ADMINS = (
-    ('Ben Adida', 'ben@adida.net'),
 )
 
 MANAGERS = ADMINS
@@ -31,18 +38,16 @@ SHOW_USER_INFO = (get_from_env('SHOW_USER_INFO', '1') == '1')
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'helios'
-    }
+        'NAME': 'helios',
+        'CONN_MAX_AGE': 600,
+    },
 }
-
-SOUTH_DATABASE_ADAPTERS = {'default':'south.db.postgresql_psycopg2'}
 
 # override if we have an env variable
 if get_from_env('DATABASE_URL', None):
     import dj_database_url
-    DATABASES['default'] =  dj_database_url.config()
-    DATABASES['default']['ENGINE'] = 'dbpool.db.backends.postgresql_psycopg2'
-    DATABASES['default']['OPTIONS'] = {'MAX_CONNS': 1}
+    DATABASES['default'] = dj_database_url.config(conn_max_age=600, ssl_require=True)
+    DATABASES['default']['ENGINE'] = 'django.db.backends.postgresql_psycopg2'
 
 # Local time zone for this installation. Choices can be found here:
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
@@ -78,8 +83,14 @@ STATIC_URL = '/media/'
 # Make this unique, and don't share it with anybody.
 SECRET_KEY = get_from_env('SECRET_KEY', 'replaceme')
 
+# If debug is set to false and ALLOWED_HOSTS is not declared, django raises  "CommandError: You must set settings.ALLOWED_HOSTS if DEBUG is False."
+# If in production, you got a bad request (400) error
+#More info: https://docs.djangoproject.com/en/1.7/ref/settings/#allowed-hosts (same for 1.6)
+
+ALLOWED_HOSTS = get_from_env('ALLOWED_HOSTS', 'localhost').split(",")
+
 # Secure Stuff
-if (get_from_env('SSL', '0') == '1'):
+if get_from_env('SSL', '0') == '1':
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
 
@@ -88,51 +99,58 @@ if (get_from_env('SSL', '0') == '1'):
 
 SESSION_COOKIE_HTTPONLY = True
 
-# one week HSTS seems like a good balance for MITM prevention
-if (get_from_env('HSTS', '0') == '1'):
-    SECURE_HSTS_SECONDS = 3600 * 24 * 7
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+# let's go with one year because that's the way to do it now
+STS = False
+if get_from_env('HSTS', '0') == '1':
+    STS = True
+    # we're using our own custom middleware now
+    # SECURE_HSTS_SECONDS = 31536000
+    # not doing subdomains for now cause that is not likely to be necessary and can screw things up.
+    # SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# List of callables that know how to import templates from various sources.
-TEMPLATE_LOADERS = (
-    'django.template.loaders.filesystem.Loader',
-    'django.template.loaders.app_directories.Loader'
-)
+SILENCED_SYSTEM_CHECKS = ['urls.W002']
 
-MIDDLEWARE_CLASSES = (
-    # make all things SSL
-    #'sslify.middleware.SSLifyMiddleware',
-
+MIDDLEWARE = [
     # secure a bunch of things
-    'djangosecure.middleware.SecurityMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    'helios.security.HSTSMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
 
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware'
-)
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+]
 
 ROOT_URLCONF = 'urls'
 
 ROOT_PATH = os.path.dirname(__file__)
-TEMPLATE_DIRS = (
-    ROOT_PATH,
-    os.path.join(ROOT_PATH, 'templates')
-)
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'APP_DIRS': True,
+        'DIRS': [
+            ROOT_PATH,
+            os.path.join(ROOT_PATH, 'templates'),
+            # os.path.join(ROOT_PATH, 'helios/templates'),  # covered by APP_DIRS:True
+            # os.path.join(ROOT_PATH, 'helios_auth/templates'),  # covered by APP_DIRS:True
+            # os.path.join(ROOT_PATH, 'server_ui/templates'),  # covered by APP_DIRS:True
+        ],
+        'OPTIONS': {
+            'debug': DEBUG
+        }
+    },
+]
 
 INSTALLED_APPS = (
-#    'django.contrib.auth',
-#    'django.contrib.contenttypes',
-    'djangosecure',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
-    ## needed for queues
-    'djcelery',
-    'kombu.transport.django',
-    ## needed for schema migration
-    'south',
     ## HELIOS stuff
     'helios_auth',
     'helios',
@@ -160,18 +178,12 @@ LOGOUT_ON_CONFIRMATION = True
 
 # The two hosts are here so the main site can be over plain HTTP
 # while the voting URLs are served over SSL.
-URL_HOST = get_from_env("URL_HOST", "http://localhost:8000")
+URL_HOST = get_from_env("URL_HOST", "http://localhost:8000").rstrip("/")
 
 # IMPORTANT: you should not change this setting once you've created
 # elections, as your elections' cast_url will then be incorrect.
 # SECURE_URL_HOST = "https://localhost:8443"
-SECURE_URL_HOST = get_from_env("SECURE_URL_HOST", "http://localhost:8000")
-
-# this additional host is used to iframe-isolate the social buttons,
-# which usually involve hooking in remote JavaScript, which could be
-# a security issue. Plus, if there's a loading issue, it blocks the whole
-# page. Not cool.
-SOCIALBUTTONS_URL_HOST= get_from_env("SOCIALBUTTONS_URL_HOST", "http://localhost:8000")
+SECURE_URL_HOST = get_from_env("SECURE_URL_HOST", URL_HOST).rstrip("/")
 
 # election stuff
 SITE_TITLE = get_from_env('SITE_TITLE', 'Helios Voting')
@@ -196,9 +208,15 @@ HELIOS_VOTERS_EMAIL = True
 HELIOS_PRIVATE_DEFAULT = False
 
 # authentication systems enabled
-#AUTH_ENABLED_AUTH_SYSTEMS = ['password','facebook','twitter', 'google', 'yahoo']
-AUTH_ENABLED_AUTH_SYSTEMS = get_from_env('AUTH_ENABLED_AUTH_SYSTEMS', 'google').split(",")
-AUTH_DEFAULT_AUTH_SYSTEM = get_from_env('AUTH_DEFAULT_AUTH_SYSTEM', None)
+# AUTH_ENABLED_SYSTEMS = ['password','facebook','twitter', 'google', 'yahoo']
+AUTH_ENABLED_SYSTEMS = get_from_env('AUTH_ENABLED_SYSTEMS',
+                                    get_from_env('AUTH_ENABLED_AUTH_SYSTEMS', 'password,google,facebook')
+                                    ).split(",")
+AUTH_DEFAULT_SYSTEM = get_from_env('AUTH_DEFAULT_SYSTEM', get_from_env('AUTH_DEFAULT_AUTH_SYSTEM', None))
+
+# google
+GOOGLE_CLIENT_ID = get_from_env('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = get_from_env('GOOGLE_CLIENT_SECRET', '')
 
 # facebook
 FACEBOOK_APP_ID = get_from_env('FACEBOOK_APP_ID','')
@@ -224,6 +242,10 @@ CAS_PASSWORD = get_from_env('CAS_PASSWORD', "")
 CAS_ELIGIBILITY_URL = get_from_env('CAS_ELIGIBILITY_URL', "")
 CAS_ELIGIBILITY_REALM = get_from_env('CAS_ELIGIBILITY_REALM', "")
 
+# Clever
+CLEVER_CLIENT_ID = get_from_env('CLEVER_CLIENT_ID', "")
+CLEVER_CLIENT_SECRET = get_from_env('CLEVER_CLIENT_SECRET', "")
+
 # email server
 EMAIL_HOST = get_from_env('EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(get_from_env('EMAIL_PORT', "2525"))
@@ -239,20 +261,24 @@ if get_from_env('EMAIL_USE_AWS', '0') == '1':
 
 # set up logging
 import logging
+
 logging.basicConfig(
-    level = logging.DEBUG,
-    format = '%(asctime)s %(levelname)s %(message)s'
+    level=logging.DEBUG if TESTING else logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s'
 )
 
+# set up celery
+CELERY_BROKER_URL = get_from_env('CELERY_BROKER_URL', 'amqp://localhost')
+if TESTING:
+    CELERY_TASK_ALWAYS_EAGER = True
+#database_url = DATABASES['default']
 
-# set up django-celery
-# BROKER_BACKEND = "kombu.transport.DatabaseTransport"
-BROKER_URL = "django://"
-CELERY_RESULT_DBURI = DATABASES['default']
-import djcelery
-djcelery.setup_loader()
-
-
-# for testing
-TEST_RUNNER = 'djcelery.contrib.test_runner.CeleryTestSuiteRunner'
-# this effectively does CELERY_ALWAYS_EAGER = True
+# Rollbar Error Logging
+ROLLBAR_ACCESS_TOKEN = get_from_env('ROLLBAR_ACCESS_TOKEN', None)
+if ROLLBAR_ACCESS_TOKEN:
+  print("setting up rollbar")
+  MIDDLEWARE += ['rollbar.contrib.django.middleware.RollbarNotifierMiddleware',]
+  ROLLBAR = {
+    'access_token': ROLLBAR_ACCESS_TOKEN,
+    'environment': 'development' if DEBUG else 'production',  
+  }

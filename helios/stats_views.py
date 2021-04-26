@@ -2,18 +2,19 @@
 Helios stats views
 """
 
-from django.core.urlresolvers import reverse
-from django.core.mail import send_mail
+import datetime
+
 from django.core.paginator import Paginator
-from django.http import *
-from django.db import transaction
-from django.db.models import *
+from django.urls import reverse
+from django.db.models import Max, Count
+from django.http import HttpResponseRedirect
 
-from security import *
-from helios_auth.security import get_user, save_in_session_across_logouts
-from view_utils import *
+from helios import tasks, url_names
+from helios.models import CastVote, Election
+from helios_auth.security import get_user
+from .security import PermissionDenied
+from .view_utils import render_template
 
-from helios import tasks
 
 def require_admin(request):
   user = get_user(request)
@@ -33,20 +34,23 @@ def force_queue(request):
   for cv in votes_in_queue:
     tasks.cast_vote_verify_and_store.delay(cv.id)
 
-  return HttpResponseRedirect(reverse(home))
+  return HttpResponseRedirect(reverse(url_names.stats.STATS_HOME))
 
 def elections(request):
   user = require_admin(request)
 
   page = int(request.GET.get('page', 1))
   limit = int(request.GET.get('limit', 25))
+  q = request.GET.get('q','')
 
-  elections = Election.objects.all().order_by('-created_at')
+  elections = Election.objects.filter(name__icontains = q).order_by('-created_at')
   elections_paginator = Paginator(elections, limit)
   elections_page = elections_paginator.page(page)
 
+  total_elections = elections_paginator.count
+
   return render_template(request, "stats_elections", {'elections' : elections_page.object_list, 'elections_page': elections_page,
-                                                      'limit' : limit})
+                                                      'limit' : limit, 'total_elections': total_elections, 'q': q})
     
 def recent_votes(request):
   user = require_admin(request)

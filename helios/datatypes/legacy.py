@@ -77,7 +77,7 @@ class Voter(LegacyObject):
         """
         depending on whether the voter is aliased, use different fields
         """
-        if self.wrapped_obj.alias != None:
+        if self.wrapped_obj.alias is not None:
             return super(Voter, self).toDict(self.ALIASED_VOTER_FIELDS, complete = complete)
         else:
             return super(Voter,self).toDict(complete = complete)
@@ -176,7 +176,7 @@ class DLogProof(LegacyObject):
 
     def __init__(self, wrapped_obj):
         if isinstance(wrapped_obj, dict):
-            import pdb; pdb.set_trace()
+            raise Exception("problem with dict")
 
         super(DLogProof,self).__init__(wrapped_obj)
 

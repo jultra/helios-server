@@ -5,25 +5,32 @@ Some basic utils
 2010-08-17
 """
 
-from django.utils import simplejson
+import json
+
 
 ## JSON
 def to_json(d):
-  return simplejson.dumps(d, sort_keys=True)
-  
-def from_json(json_str):
-  if not json_str: return None
-  return simplejson.loads(json_str)
-  
-def JSONtoDict(json):
-    x=simplejson.loads(json)
-    return x
-    
+    return json.dumps(d, sort_keys=True)
+
+
+def from_json(value):
+    if value == "" or value is None:
+        return None
+
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except Exception as e:
+            # import ast
+            # try:
+            #     parsed_value = ast.literal_eval(parsed_value)
+            # except Exception as e1:
+            raise Exception("value is not JSON parseable, that's bad news") from e
+
+    return value
+
+
 def JSONFiletoDict(filename):
-  f = open(filename, 'r')
-  content = f.read()
-  f.close()
-  return JSONtoDict(content)
-    
-
-
+    with open(filename, 'r') as f:
+        content = f.read()
+    return from_json(content)

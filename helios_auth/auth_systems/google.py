@@ -3,46 +3,59 @@ Google Authentication
 
 """
 
-from django.http import *
-from django.core.mail import send_mail
+import httplib2
 from django.conf import settings
+from django.core.mail import send_mail
+from oauth2client.client import OAuth2WebServerFlow
 
-import sys, os, cgi, urllib, urllib2, re
-from xml.etree import ElementTree
-
-from openid import view_helpers
+from helios_auth import utils
 
 # some parameters to indicate that status updating is not possible
 STATUS_UPDATES = False
 
 # display tweaks
 LOGIN_MESSAGE = "Log in with my Google Account"
-OPENID_ENDPOINT = 'https://www.google.com/accounts/o8/id'
 
-# FIXME!
-# TRUST_ROOT = 'http://localhost:8000'
-# RETURN_TO = 'http://localhost:8000/auth/after'
+def get_flow(redirect_url=None):
+  return OAuth2WebServerFlow(client_id=settings.GOOGLE_CLIENT_ID,
+            client_secret=settings.GOOGLE_CLIENT_SECRET,
+            scope='profile email',
+            redirect_uri=redirect_url)
 
 def get_auth_url(request, redirect_url):
-  # FIXME?? TRUST_ROOT should be diff than return_url?
-  request.session['google_redirect_url'] = redirect_url
-  url = view_helpers.start_openid(request.session, OPENID_ENDPOINT, redirect_url, redirect_url)
-  return url
+  flow = get_flow(redirect_url)
+
+  request.session['google-redirect-url'] = redirect_url
+  return flow.step1_get_authorize_url()
 
 def get_user_info_after_auth(request):
-  data = view_helpers.finish_openid(request.session, request.GET, request.session['google_redirect_url'])
+  flow = get_flow(request.session['google-redirect-url'])
 
-  if not data.has_key('ax'):
+  if 'code' not in request.GET:
     return None
+  
+  code = request.GET['code']
+  credentials = flow.step2_exchange(code)
 
-  email = data['ax']['email'][0]
+  # the email address is in the credentials, that's how we make sure it's verified
+  id_token = credentials.id_token
+  if not id_token['email_verified']:
+    raise Exception("email address with Google not verified")
+   
+  email = id_token['email']
 
-  # do we have a firstname/lastname?
-  if data['ax'].has_key('firstname') and data['ax'].has_key('lastname'):
-    name = "%s %s" % (data['ax']['firstname'][0], data['ax']['lastname'][0])
-  else:
-    name = email
+  # get the nice name
+  http = httplib2.Http(".cache")
+  http = credentials.authorize(http)
+  (resp_headers, content) = http.request("https://people.googleapis.com/v1/people/me?personFields=names", "GET")
 
+  response = utils.from_json(content.decode('utf-8'))
+
+  name = response['names'][0]['displayName']
+  
+  # watch out, response also contains email addresses, but not sure whether thsoe are verified or not
+  # so for email address we will only look at the id_token
+  
   return {'type' : 'google', 'user_id': email, 'name': name , 'info': {'email': email}, 'token':{}}
     
 def do_logout(user):
@@ -68,3 +81,11 @@ def check_constraint(constraint, user_info):
   for eligibility
   """
   pass
+
+
+#
+# Election Creation
+#
+
+def can_create_election(user_id, user_info):
+  return True

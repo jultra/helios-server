@@ -3,14 +3,15 @@ Forms for Helios
 """
 
 from django import forms
-from models import Election
-from widgets import *
-from fields import *
 from django.conf import settings
+
+from .fields import SplitDateTimeField
+from .models import Election
+from .widgets import SplitSelectDateTimeWidget
 
 
 class ElectionForm(forms.Form):
-  short_name = forms.SlugField(max_length=25, help_text='no spaces, will be part of the URL for your election, e.g. my-club-2010')
+  short_name = forms.SlugField(max_length=40, help_text='no spaces, will be part of the URL for your election, e.g. my-club-2010')
   name = forms.CharField(max_length=100, widget=forms.TextInput(attrs={'size':60}), help_text='the pretty name for your election, e.g. My Club 2010 Election')
   description = forms.CharField(max_length=4000, widget=forms.Textarea(attrs={'cols': 70, 'wrap': 'soft'}), required=False)
   election_type = forms.ChoiceField(label="type", choices = Election.ELECTION_TYPES)
@@ -23,14 +24,15 @@ class ElectionForm(forms.Form):
   if settings.ALLOW_ELECTION_INFO_URL:
     election_info_url = forms.CharField(required=False, initial="", label="Election Info Download URL", help_text="the URL of a PDF document that contains extra election information, e.g. candidate bios and statements")
   
-
-class ElectionTimesForm(forms.Form):
   # times
   voting_starts_at = SplitDateTimeField(help_text = 'UTC date and time when voting begins',
-                                   widget=SplitSelectDateTimeWidget)
+                                   widget=SplitSelectDateTimeWidget, required=False)
   voting_ends_at = SplitDateTimeField(help_text = 'UTC date and time when voting ends',
-                                   widget=SplitSelectDateTimeWidget)
+                                   widget=SplitSelectDateTimeWidget, required=False)
 
+class ElectionTimeExtensionForm(forms.Form):
+  voting_extended_until = SplitDateTimeField(help_text = 'UTC date and time voting extended to',
+                                   widget=SplitSelectDateTimeWidget, required=False)
   
 class EmailVotersForm(forms.Form):
   subject = forms.CharField(max_length=80)
