@@ -4,9 +4,10 @@ Utilities for all views
 Ben Adida (12-30-2008)
 """
 
-from django.template import Context, Template, loader
+from django.template import Context, Template, loader, RequestContext
 from django.http import HttpResponse, Http404
-from django.shortcuts import render_to_response
+from django.shortcuts import render_to_response, render
+from django.contrib.messages import get_messages
 
 from helios_auth.security import get_user
 
@@ -42,10 +43,13 @@ def prepare_vars(request, vars):
   
 def render_template(request, template_name, values = None):
  # t = loader.get_template(template_name + '.html')
+
+  messages = get_messages(request)
   
-  vars_with_user = prepare_vars(request, values or {})
+  vars_with_user = prepare_vars(request, messages, values or {})
   
-  return render_to_response('helios_auth/templates/%s.html' % template_name, vars_with_user)
+  return render(request, 'helios_auth/templates/%s.html' % template_name, context=vars_with_user)
+  
 
 def render_template_raw(request, template_name, values=None):
   t = loader.get_template(template_name + '.html')

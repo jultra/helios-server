@@ -16,4 +16,6 @@ INSERT INTO helios_auth_permission (id, name, model_type, codename) VALUES (6, '
 INSERT INTO helios_auth_permission (id, name, model_type, codename) VALUES (22, 'Election | Can  define election ballot', 'election', 'define_ballot');
 INSERT INTO helios_auth_permission (id, name, model_type, codename) VALUES (29, 'Election | Can change election', 'election', 'change_election');
 INSERT INTO helios_auth_permission (id, name, model_type, codename) VALUES (30, 'Trustee | Can send trustee login information', 'trustee', 'can_send_trustee_url');
-INSERT INTO helios_auth_permission (id, name, model_type, codename) VALUES (32, 'Election | Can release election results', 'election', 'can_release_election_results');
+INSERT INTO helios_auth_permission (id, name, model_type, codename) VALUES (32, 'Election | Can compute election results', 'election', 'can_compute_election_results');
+INSERT INTO helios_auth_permission (id, name, model_type, codename) VALUES (33, 'Election | Can release election results', 'election', 'can_release_election_results');
+INSERT INTO helios_auth_permission (id, name, model_type, codename) VALUES (34, 'Election | Can copy election', 'election', 'copy_election');

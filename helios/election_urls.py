@@ -123,9 +123,9 @@ urlpatterns = [
     url(r'^/admin/validation/requests_trustee$', views.requests_trustees),
     url(r'^/admin/validation/other_requests$', views.other_requests, name="other@requests"),
     url(r'^/admin/validation/request_details/(?P<vr_id>[^/]+)$', views.request_details, name="request@details"),
-    url(r'^/admin/validation/approve_request/(?P<vr_id>[^/]+)$', views.approve_request),
-    url(r'^/admin/validation/reject_request/(?P<vr_id>[^/]+)$', views.reject_request),
-    url(r'^/admin/validation/ignore_request/(?P<vr_id>[^/]+)$', views.ignore_request),
+    url(r'^/admin/validation/approve_request/(?P<vr_id>[^/]+)$', views.approve_request, name="approve@request"),
+    url(r'^/admin/validation/reject_request/(?P<vr_id>[^/]+)$', views.reject_request, name="reject@request"),
+    url(r'^/admin/validation/ignore_request/(?P<vr_id>[^/]+)$', views.ignore_request, name="ignore@request"),
     
     url(r'^/verify_object/(?P<uuid>[^/]+)$', views.verify_object_by_uuid),
     

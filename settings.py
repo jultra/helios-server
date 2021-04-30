@@ -133,8 +133,6 @@ MIDDLEWARE = [
 #    'django.contrib.messages.context_processors.messages',
 #)
 
-MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
-
 ROOT_URLCONF = 'urls'
 
 ROOT_PATH = os.path.dirname(__file__)

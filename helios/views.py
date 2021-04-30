@@ -38,7 +38,8 @@ from .models import (User, Election, CastVote, Voter, VoterFile, Trustee, Audite
 from .security import (election_view, election_admin,
                        trustee_check, set_logged_in_trustee,
                        can_create_election, user_can_see_election, get_voter,
-                       user_can_admin_election, user_can_feature_election, user_can_officiate_election, user_has_perm)
+                       user_can_admin_election, user_can_feature_election, user_can_officiate_election, user_has_perm,
+                       get_officer)
 from .view_utils import SUCCESS, FAILURE, return_json, render_template, render_template_raw, get_referer_view
 from .workflows import homomorphic
 #=======
@@ -339,7 +340,7 @@ def one_election_edit(request, election, **kw):
 def one_election_schedule(request, election):
   return HttpResponse("foo")
 
-@election_admin()
+@election_admin(perm_needed='change_election')
 def one_election_extend(request, election):
   if request.method == "GET":
     election_form = forms.ElectionTimeExtensionForm({'voting_extended_until': election.voting_extended_until})
@@ -1086,7 +1087,7 @@ def one_election_set_featured(request, election):
   return HttpResponseRedirect(settings.SECURE_URL_HOST + reverse(url_names.election.ELECTION_VIEW, args=[election.uuid]))
 
 @election_admin(perm_needed='change_election')
-def one_election_archive(request, election):
+def one_election_archive(request, election, **kw):
   
   archive_p = request.GET.get('archive_p', True)
   
@@ -1099,7 +1100,7 @@ def one_election_archive(request, election):
 
   return HttpResponseRedirect(settings.SECURE_URL_HOST + reverse(url_names.election.ELECTION_VIEW, args=[election.uuid]))
   
-@election_admin()
+@election_admin(perm_needed='copy_election')
 def one_election_copy(request, election):
   # FIXME: make this a POST and CSRF protect it
   # check_csrf(request)
@@ -1129,8 +1130,20 @@ def one_election_copy(request, election):
     cast_url = settings.SECURE_URL_HOST + reverse(one_election_cast, args=[new_uuid])
   )
   
-
   new_election.generate_trustee(ELGAMAL_PARAMS)
+
+  #added code by John Ultra
+  #add the current user, election creator as Election Admin by default
+  election_officer = ElectionOfficer.objects.create(user=election.admin, election=election, super_p = True )
+  election_officer.save()
+  
+  #create default Election Administrator role for this election
+  election_admin_role = ElectionRole.get_or_create_election_admin_role(election)
+  
+  #add Election Administrator role to roles of election creator.Assumes that he is an admin and He MUST be!
+  election_officer.electionrole.add(election_admin_role)
+
+  
   return HttpResponseRedirect(settings.SECURE_URL_HOST + reverse(url_names.election.ELECTION_VIEW, args=[new_election.uuid]))
 
 # changed from admin to view because 
@@ -1407,7 +1420,7 @@ def trustee_upload_decryption(request, election, trustee_uuid):
   else:
     return FAILURE
 
-@election_admin(frozen=True)
+@election_admin(frozen=True, perm_needed='can_release_election_results')
 def release_result(request, election):
   """
   result is computed and now it's time to release the result
@@ -1428,14 +1441,14 @@ def release_result(request, election):
   # if just viewing the form or the form is not valid
   return render_template(request, 'release_result', {'election': election})
 
-@election_admin(frozen=True, perm_needed='can_release_election_results')
+@election_admin(frozen=True, perm_needed='can_compute_election_results')
 def combine_decryptions(request, election, **kw):
   """
   combine trustee decryptions
   """
   #perm_needed = 'can_release_election_results'
-  if not user_has_perm(get_user(request), election, kw['perm_needed']):
-      raise PermissionDenied()
+  #if not user_has_perm(get_user(request), election, kw['perm_needed']):
+  #    raise PermissionDenied()
 
   election_url = get_election_url(election)
   
@@ -1620,10 +1633,10 @@ def voters_upload(request, election, **kw):
       
       try:
           v_policy = ValidationPolicy.get_by_election_and_perm(election, perm_codename=kw['perm_needed'])
-          tasks.voter_file_process(user_id = get_user(request).id, voter_file_id = request.session['voter_file_id'], v_policy_id = v_policy.id)
+          tasks.voter_file_process.delay(user_id = get_user(request).id, voter_file_id = request.session['voter_file_id'], v_policy_id = v_policy.id)
       except:
           # launch the background task to parse that file
-          tasks.voter_file_process(user_id = get_user(request).id, voter_file_id = request.session['voter_file_id'])
+          tasks.voter_file_process.delay(user_id = get_user(request).id, voter_file_id = request.session['voter_file_id'])
       
       del request.session['voter_file_id']
       messages.info(request, "Entries in the voter file which might cause duplicates voter registration were automatically removed.")
@@ -1895,7 +1908,7 @@ def user_new(request, election, **kw):
             
             default_subject = render_template_raw(None, 'email/officer_subject.txt', {})
             
-            election_url = settings.URL_HOST + reverse(one_election_officers_list, args=[election.uuid])
+            election_url = settings.URL_HOST + reverse(one_election_view, args=[election.uuid])
             
             default_body = render_template_raw(None, 'email/officer_body.txt', {
                 'election' : election,

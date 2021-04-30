@@ -1259,7 +1259,7 @@ class Voter(HeliosModel):
     
     new_voter = cls(uuid=str(data['uuid']), voter_name=str(data['voter_name']), voter_login_id=str(data['voter_login_id']), 
                         voter_email=str(data['voter_email']), voter_password=str(data['voter_password']),
-                        voter_type=str(data['voter_type']), election=election)
+                        election=election)
     new_voter.save()
     return new_voter
 
@@ -1600,7 +1600,7 @@ class ElectionOfficer(HeliosModel):
             if ve_role in self.roles:
                 if not self.has_prior_participation(v_request, request):
                     # add approval of election officer, and save to database
-                    active_vm.validators.append([self.user.user_id, unicode(datetime.datetime.utcnow()), decision,'somesignature'])
+                    active_vm.validators.append([self.user.user_id, str(datetime.datetime.utcnow()), decision,'somesignature'])
                     active_vm.save()
                     v_request.do_checks()
                     if not v_request.satisfiable:
@@ -2355,10 +2355,11 @@ class ValidationEntryMonitor(models.Model):
         names = []
         for val in self.validators:
             user_id = val[0]
+            date = val[1]
             decision = val[2]
             if decision == ValidationEntryMonitor.APPROVED:
                 user = User.objects.get(user_id=user_id)
-                names.append(user.name)
+                names.append("%s (%s)" % (user.name, date))
         return names
     
     @property

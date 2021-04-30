@@ -210,7 +210,7 @@ def election_notify_all_officers(election_id, subject, body):
     officers = ElectionOfficer.get_by_election_id(election_id)
     
     for officer in officers:
-        election_notify_an_officer.delay(officer, election_id, subject, body)
+        election_notify_an_officer.delay(officer.id, election_id, subject, body)
     
 @shared_task()
 def election_notify_an_officer(officer_id, election_id, subject, body):

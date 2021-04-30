@@ -14,7 +14,7 @@ from functools import update_wrapper
 
 from django.template import Context, Template, loader, RequestContext
 from django.http import HttpResponse, Http404
-from django.shortcuts import render_to_response
+from django.shortcuts import render_to_response, render
 
 import re
 
@@ -72,7 +72,8 @@ def render_template(request, template_name, values = None, include_user=True):
   if not include_user:
     del vars_with_user['user']
 
-  return render_to_response('helios/templates/%s.html' % template_name, vars_with_user)
+
+  return render(request, 'helios/templates/%s.html' % template_name, context=vars_with_user)
   
 def render_template_raw(request, template_name, values={}):
   t = loader.get_template(template_name)

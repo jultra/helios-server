@@ -67,3 +67,38 @@ select {
 ul {
     margin-left: 20px;
 }
+
+.message-box {
+  
+  background: lightyellow;
+  padding: 10px;
+  color: black;
+  border: 1px solid #888;
+}
+
+li.info {
+  color: blue;
+  font-size: large;
+}
+
+li.success {
+  color: green;
+  font-size: large;
+}
+
+li.error {
+  color: red;
+  font-size: large;
+}
+
+.Active-Invalid {
+  color: orange;
+}
+
+.Terminated-Valid {
+  color: green;
+}
+
+.Inactive-Invalid {
+  color: black;
+}
