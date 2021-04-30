@@ -7,6 +7,12 @@ import logging
 import re
 import uuid
 from urllib.parse import urlencode
+import unittest, urllib
+
+from helios_auth import models as auth_models
+from views import ELGAMAL_PARAMS
+import views
+import utils
 
 import django_webtest
 from django.conf import settings

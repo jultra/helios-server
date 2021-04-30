@@ -116,8 +116,13 @@ def follow_view(request):
       twitter_client = _get_client_by_token(user.token)
       result = twitter_client.oauth_request('http://api.twitter.com/1/friendships/create.json', args={'screen_name': USER_TO_FOLLOW}, method='POST')
 
+#<<<<<<< HEAD:helios_auth/auth_systems/twitter.py
     from helios_auth.url_names import AUTH_AFTER_INTERVENTION
     return HttpResponseRedirect(reverse(AUTH_AFTER_INTERVENTION))
+#=======
+#    from helios_auth.views import after_intervention
+#    return HttpResponseRedirect(reverse(after_intervention))
+#>>>>>>> helios-rbac-repo/master:auth/auth_systems/twitter.py
 
 
 

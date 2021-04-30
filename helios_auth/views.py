@@ -18,7 +18,14 @@ from .auth_systems import AUTH_SYSTEMS, password
 from .models import User
 from .security import FIELDS_TO_SAVE
 from .view_utils import render_template, render_template_raw
+#=======
+#from view_utils import *
 
+#import auth_systems
+#from auth_systems import AUTH_SYSTEMS
+#from auth_systems import password
+#import helios_auth
+#import helios_auth as auth
 
 def index(request):
   """
@@ -44,7 +51,25 @@ def index(request):
                                             'enabled_auth_systems' : ENABLED_AUTH_SYSTEMS,
                                             'default_auth_system': DEFAULT_AUTH_SYSTEM,
                                             'default_auth_system_obj': default_auth_system_obj})
+"""
+  if len(helios_auth.ENABLED_AUTH_SYSTEMS) == 1 and not user:
+    return HttpResponseRedirect(reverse(start, args=[helios_auth.ENABLED_AUTH_SYSTEMS[0]])+ '?return_url=' + request.GET.get('return_url', ''))
 
+  #if helios_auth.DEFAULT_AUTH_SYSTEM and not user:
+  #  return HttpResponseRedirect(reverse(start, args=[auth.DEFAULT_AUTH_SYSTEM])+ '?return_url=' + request.GET.get('return_url', ''))
+  
+  default_auth_system_obj = None
+  if helios_auth.DEFAULT_AUTH_SYSTEM:
+    default_auth_system_obj = AUTH_SYSTEMS[helios_auth.DEFAULT_AUTH_SYSTEM]
+    
+  #form = password.LoginForm()
+
+  return render_template(request,'index', {'return_url' : request.GET.get('return_url', '/'),
+                                           'enabled_auth_systems' : helios_auth.ENABLED_AUTH_SYSTEMS,
+                                           'default_auth_system': helios_auth.DEFAULT_AUTH_SYSTEM,
+                                           'default_auth_system_obj': default_auth_system_obj})
+>>>>>>> helios-rbac-repo/master:auth/views.py
+"""
 def login_box_raw(request, return_url='/', auth_systems = None):
   """
   a chunk of HTML that shows the various login options
@@ -207,4 +232,3 @@ def after_intervention(request):
     return_url = request.session['auth_return_url']
     del request.session['auth_return_url']
   return HttpResponseRedirect(settings.URL_HOST + return_url)
-

@@ -9,6 +9,11 @@ import datetime
 import re
 import string
 import urllib.parse
+import urllib, sys
+import threading
+
+# utils from auth, too
+from helios_auth.utils import *
 
 from django.conf import settings
 

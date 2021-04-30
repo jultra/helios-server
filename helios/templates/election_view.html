@@ -1,42 +1,45 @@
 {% extends TEMPLATE_BASE %}
 {% block title %}{{election.name}}{% endblock %}
 {% block content %}
+
 <div style="float: left; margin-right: 50px;">
   <h3 class="title">{{ election.name }}
 {% if admin_p %}
-{% if not election.frozen_at %}
-<small><a class="small button" href="{% url "election@edit" election.uuid %}">edit</a></small>
-{% endif %}
+	{% if not election.frozen_at %}
+		<small><a class="small button" href="{% url "election@edit" election.uuid %}">edit</a></small>
+	{% endif %}
 {% endif %}</h3>
+
 <p style="padding-top:0px; margin-top:0px">
 <em>{% if election.private_p %}private{%else%}public{% endif %}</em> {{ election.election_type }}{% if settings.SHOW_USER_INFO %} created by <u><b>{{election.admin.display_html_small|safe}}</b></u>{% endif %}
 {% if election.is_archived %}
-[archived]
+	[archived]
 {% endif %}
+
 {% if admin_p %}
-&nbsp;{% if election.is_archived %}<a class="small button" href="{% url "election@archive" election_uuid=election.uuid %}?archive_p=0">unarchive it</a>{% else %}<a class="small button" href="{% url "election@archive" election_uuid=election.uuid %}?archive_p=1">archive it</a>{% endif %}
-<a class="small button" onclick="return window.confirm('Are you sure you want to copy this election?');" href="{% url "election@copy" election_uuid=election.uuid %}">copy</a>
+	&nbsp;{% if election.is_archived %}<a class="small button" href="{% url "election@archive" election_uuid=election.uuid %}?archive_p=0">unarchive it</a>{% else %}<a class="small button" href="{% url "election@archive" election_uuid=election.uuid %}?archive_p=1">archive it</a>{% endif %}
+	<a class="small button" onclick="return window.confirm('Are you sure you want to copy this election?');" href="{% url "election@copy" election_uuid=election.uuid %}">copy</a>
 {% endif %}
 <br />
+
 {% if admin_p %}
-{% if not election.private_p %}
-{% if election.featured_p %}
-this {{election.election_type}} is featured on the front page.
-{% if can_feature_p %}
-[<a href="{% url "election@set-featured" election.uuid %}?featured_p=0">unfeature it</a>]
-{% endif %}
-{% else %}
-this {{election.election_type}} is <u>not</u> featured on the front page.
-{% if can_feature_p %}
-[<a href="{% url "election@set-featured" election.uuid %}?featured_p=1">feature it</a>]
-{% endif %}
-{% endif %}
-{% endif %}
+	{% if not election.private_p %}
+		{% if election.featured_p %}
+			this {{election.election_type}} is featured on the front page.
+			{% if can_feature_p %}
+				[<a href="{% url "election@set-featured" election.uuid %}?featured_p=0">unfeature it</a>]
+			{% endif %}
+		{% else %}
+			this {{election.election_type}} is <u>not</u> featured on the front page.
+			{% if can_feature_p %}
+				[<a href="{% url "election@set-featured" election.uuid %}?featured_p=1">feature it</a>]
+			{% endif %}
+		{% endif %}
+	{% endif %}
 {% endif %}
 </p>
 
 </div>
-
 
 <br />
 
@@ -45,6 +48,19 @@ this {{election.election_type}} is <u>not</u> featured on the front page.
 <div style="margin-bottom: 25px; line-height: 1.3;">
 {{election.description_bleached|safe}}
 </div>
+
+<p align="center" style="font-size: 1.5em;">
+<a href="{% url "election@admin@view" election.uuid %}">administration</a>
+&nbsp;&nbsp;|&nbsp;&nbsp;
+<a href="{% url "election@questions" election.uuid %}">ballot definition</a>
+&nbsp;&nbsp;|&nbsp;&nbsp;
+<a href="{% url "election@voters@list-pretty" election.uuid %}">voters &amp; ballots</a>
+&nbsp;&nbsp;|&nbsp;&nbsp;
+<a href="{% url "election@trustees@view" election.uuid %}">trustees ({{trustees|length}})</a>
+<br />
+<a href="{% url "validation@requests@list" election.uuid %}"> validation requests({{no_active_v_requests}} active requests)</a>
+</p>
+
 
 <p>
 {% if election.help_email and admin_p%}Help Email Address: {{election.help_email}}<br />{% endif %}
@@ -56,6 +72,7 @@ this {{election.election_type}} is <u>not</u> featured on the front page.
 <p style="font-size:1.5em;">[<a target="_blank" href="{{election.election_info_url}}" rel="noopener noreferrer">download candidate bios &amp; statements</a>]</p>
 {% endif %}
 
+<!--
 <p align="center" style="font-size: 1.5em;">
 <a href="{% url "election@questions" election.uuid %}">questions ({% if election.questions %}{{election.questions|length}}{% else %}0{% endif %})</a>
 &nbsp;&nbsp;|&nbsp;&nbsp;
@@ -63,6 +80,7 @@ this {{election.election_type}} is <u>not</u> featured on the front page.
 &nbsp;&nbsp;|&nbsp;&nbsp;
 <a href="{% url "election@trustees@view" election.uuid %}">trustees ({{trustees|length}})</a>
 </p>
+-->
 
 {% if admin_p %}
 {% if election.frozen_p %}
@@ -79,6 +97,8 @@ this {{election.election_type}} is <u>not</u> featured on the front page.
 </div>
 {% endif %}
 <p>
+
+{% include "info-messages.html"%}
 
 {% if election.result_released_at %}
 
@@ -302,8 +322,4 @@ review the <a href="{{vote_url}}">voting booth</a>.
 
 </div>
 </div>
-
-
-
-
 {% endblock %}

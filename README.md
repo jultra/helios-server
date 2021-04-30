@@ -1,7 +1,11 @@
 # Helios Election System
 
-Helios is an end-to-end verifiable voting system.
+# helios-server-rbac-admin
+This is a fork of the Helios Web E-voting System (https://vote.heliosvoting.org/) which was originally written by Ben Adida. 
 
-[![Travis Build Status](https://travis-ci.org/benadida/helios-server.svg?branch=master)](https://travis-ci.org/benadida/helios-server)
+This version of Helios has advanced access control functions not present in the original Helios. 
 
-[![Stories in Ready](https://badge.waffle.io/benadida/helios-server.png?label=ready&title=Ready)](https://waffle.io/benadida/helios-server)
+In this version of Helios, the various administrative functions in a Helios election can now be delegated to different election authorities. To achieve this, a role-based access control model was implemented in the system. 
+
+Additionally, a mechanism for enforcing separation of duty on the various election administrative tasks was also implemented. By applying the principle of separation of duty, the authority to perform an election administrative task can be delegated to multiple election authorities. Only through the cooperation of these election authorities that the full authority to perform the task can be acquired. 
+>>>>>>> helios-rbac-repo/master

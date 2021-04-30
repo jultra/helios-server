@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from django.conf.urls import url
 
-from .views import home, about, docs, faq, privacy
+from .views import home, about, docs, faq, privacy, home_m
 
 urlpatterns = [
   url(r'^$', home),
+  url(r'^adminhome$', home_m),
   url(r'^about$', about),
   url(r'^docs$', docs),
   url(r'^faq$', faq),

@@ -4,6 +4,12 @@
 {% block content %}
   <h2 class="title">{{election.name}} &mdash; Compute Tally <span style="font-size:0.7em;">[<a href="{% url "election@view" election.uuid %}">cancel</a>]</span></h2>
 
+  <h2 class="title">{{election.name}} &mdash; Release Tally <span style="font-size:0.7em;">[<a href="{% url "election@view" election.uuid %}">cancel</a>]</span></h2>
+	<p style="color: red;">
+	{% for message in messages %}
+    	{{message}}<br />
+    {% endfor %}
+</p>
   <p>
     You are about to compute the tally for this election. You only will then see the results.
   </p>

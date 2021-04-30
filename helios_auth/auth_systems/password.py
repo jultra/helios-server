@@ -18,6 +18,8 @@ STATUS_UPDATES = False
 PASSWORD_LOGIN_URL_NAME = "auth@password@login"
 PASSWORD_FORGOTTEN_URL_NAME = "auth@password@forgotten"
 
+LOGIN_MESSAGE = 'Login using Password'
+
 def create_user(username, password, name = None):
   from helios_auth.models import User
   
@@ -118,7 +120,14 @@ def update_status(token, message):
   pass
   
 def send_message(user_id, user_name, user_info, subject, body):
+  #default  
   email = user_id
+  
+  #hack hack hack
+  if isinstance(user_info, dict):
+      if 'email' in user_info:
+          email = user_info['email']
+      
   name = user_name or user_info.get('name', email)
   send_mail(subject, body, settings.SERVER_EMAIL, ["\"%s\" <%s>" % (name, email)], fail_silently=False)    
 

@@ -4,6 +4,7 @@
 {% block content %}
   <h3 class="title">{{election.name}} &mdash; Voters and Ballot Tracking Center <span style="font-size:0.7em;">[<a href="{% url "election@view" election.uuid %}">back to election</a>]</span></h3>
 
+{% include "info-messages.html" %}
 <p>
 <b>Who can vote?</b>
 {% if election.openreg %}
@@ -110,6 +111,7 @@ Voters {{voters_page.start_index}} - {{voters_page.end_index}} (of {{total_voter
 {% endif %}
 
 <table class="pretty">
+<!--table header-->
 <tr>
 {% if admin_p or not election.use_voter_aliases %}
 {% if admin_p %}
@@ -125,6 +127,9 @@ Voters {{voters_page.start_index}} - {{voters_page.end_index}} (of {{total_voter
 {% endif %}
 <th>Smart Ballot Tracker</th>
 </tr>
+<!--end table header-->
+
+<!--populate table with contents-->
 {% for voter in voters %}
 <tr>
 {% if admin_p or not election.use_voter_aliases %}
@@ -152,5 +157,6 @@ Voters {{voters_page.start_index}} - {{voters_page.end_index}} (of {{total_voter
 <br /><br />
 <em>no voters.</em>
 {% endif %}
+<!--table content population ends here!-->
 
 {% endblock %}

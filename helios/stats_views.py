@@ -9,11 +9,17 @@ from django.urls import reverse
 from django.db.models import Max, Count
 from django.http import HttpResponseRedirect
 
+#<<<<<<< HEAD
 from helios import tasks, url_names
 from helios.models import CastVote, Election
 from helios_auth.security import get_user
 from .security import PermissionDenied
 from .view_utils import render_template
+#=======
+#from security import *
+#from helios_auth.security import get_user, save_in_session_across_logouts
+#from view_utils import *
+#>>>>>>> helios-rbac-repo/master
 
 
 def require_admin(request):

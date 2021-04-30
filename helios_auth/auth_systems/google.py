@@ -1,6 +1,5 @@
 """
 Google Authentication
-
 """
 
 import httplib2

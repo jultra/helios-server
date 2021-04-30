@@ -4,17 +4,32 @@ Utilities for all views
 Ben Adida (12-30-2008)
 """
 
+#<<<<<<< HEAD
 from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
-from django.template import loader
+#from django.template import loader
 # nicely update the wrapper function
 from functools import update_wrapper
+
+from django.template import Context, Template, loader, RequestContext
+from django.http import HttpResponse, Http404
+from django.shortcuts import render_to_response
+
+import re
+
+from helios import datatypes
+
+# nicely update the wrapper function
+#from functools import update_wrapper
+
+#from helios_auth.security import get_user
 
 import helios
 from . import utils
 from helios_auth.security import get_user
 
+from helios.models import ElectionOfficer
 ##
 ## BASICS
 ##
@@ -41,7 +56,13 @@ def prepare_vars(request, values):
   vars_with_user['TEMPLATE_BASE'] = helios.TEMPLATE_BASE
   vars_with_user['CURRENT_URL'] = request.path
   vars_with_user['SECURE_URL_HOST'] = settings.SECURE_URL_HOST
-
+  
+  if 'election' in values and get_user(request):
+      try:
+          vars_with_user['officer'] = ElectionOfficer.get_by_election_and_user(election=vars['election'], user=get_user(request))
+      except:
+          pass
+      
   return vars_with_user
 
 
@@ -52,9 +73,8 @@ def render_template(request, template_name, values = None, include_user=True):
     del vars_with_user['user']
 
   return render_to_response('helios/templates/%s.html' % template_name, vars_with_user)
-
-
-def render_template_raw(request, template_name, values=None):
+  
+def render_template_raw(request, template_name, values={}):
   t = loader.get_template(template_name)
 
   # if there's a request, prep the vars, otherwise can't do it.
@@ -86,3 +106,39 @@ def return_json(func):
         raise e
 
     return update_wrapper(convert_to_json,func)
+    
+def get_referer_view(request, default=None):
+    ''' 
+    Copyright (c) 2009 Arthur Furlan <arthur.furlan@gmail.com>
+    
+    Return the referer view of the current request
+
+    Example:
+
+        def some_view(request):
+            ...
+            referer_view = get_referer_view(request)
+            return HttpResponseRedirect(referer_view, '/accounts/login/')
+    '''
+
+    # if the user typed the url directly in the browser's address bar
+    referer = request.META.get('HTTP_REFERER')
+    if not referer:
+        return default
+
+    # remove the protocol and split the url at the slashes
+    referer = re.sub('^https?:\/\/', '', referer).split('/')
+    
+    #strip port number from domain name?
+    server_name = referer[0]
+    try:
+        server_name = server_name[:server_name.index(':')]
+    except:
+        pass
+    
+    if server_name != request.META.get('SERVER_NAME'):
+        return default
+
+    # add the slash at the relative path's view and finished
+    referer = u'/' + u'/'.join(referer[1:])
+    return referer

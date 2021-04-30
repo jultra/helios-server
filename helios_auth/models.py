@@ -10,16 +10,81 @@ from django.db import models
 
 from .auth_systems import can_check_constraint, AUTH_SYSTEMS
 from .jsonfield import JSONField
+#added by John Ultra
+#from django.contrib.contenttypes.models import ContentType
+from django.utils.translation import ugettext_lazy as _
+
+import datetime, logging
 
 
 # an exception to catch when a user is no longer authenticated
 class AuthenticationExpired(Exception):
   pass
 
+# added  by John Ultra
+# an exception to catch when an non-existent codename value of permission is supplied
+
+
+class PermissionDoesNotExist(Exception):
+  pass
+
+class PermissionManager(models.Manager):
+    def get_by_natural_key(self, codename, app_label, model):
+        return self.get(
+            codename=codename
+        )
+
+class Permission(models.Model):
+    """code taken from django source
+    """
+    name = models.CharField(_('name'), max_length=50)
+    model_type = models.CharField(max_length=50)
+    codename = models.CharField(_('codename'), max_length=100)
+    objects = PermissionManager()
+
+    class Meta:
+        verbose_name = _('permission')
+        verbose_name_plural = _('permissions')
+        unique_together = (('model_type', 'codename'),)
+        #ordering = ('content_type__app_label', 'content_type__model', 'codename')
+        ordering = ('name',)
+
+    #def __unicode__(self):
+    #    return u"%s | %s | %s" % (
+    #        unicode(self.content_type.app_label),
+    #        unicode(self.content_type),
+    #        unicode(self.name))
+
+    def __str__(self):
+        return u"%s" % (self.name)
+
+    def natural_key(self):
+        return (self.codename,)
+    natural_key.dependencies = ['contenttypes.contenttype']
+    
+    @classmethod
+    def all_codenames(cls):
+        codenames = []
+        perms = cls.objects.all()
+        for p in perms:
+            codenames.append(str(p.codename))
+        return set(codenames)
+    
+    @classmethod
+    def get_unassigned_permissions_by_election(cls, election):
+        if not election:
+            return None
+        all_perm = cls.objects.all()
+        unassigned_perm = []
+        for perm in all_perm:
+            if not perm.electionrole_set.filter(election=election):
+                unassigned_perm.append(perm)
+        return unassigned_perm
+            
 class User(models.Model):
   user_type = models.CharField(max_length=50)
-  user_id = models.CharField(max_length=100)
-    
+  user_id = models.CharField(max_length=100, unique=True)
+
   name = models.CharField(max_length=200, null=True)
   
   # other properties
@@ -164,6 +229,7 @@ class User(models.Model):
 
     return """<img class="%s-logo" src="/static/auth/login-icons/%s.png" alt="%s" /> %s""" % (
       size, self.user_type, self.user_type, name_display)
+    #return """<img border="0" height="%s" src="/static/helios_auth/login-icons/%s.png" alt="%s" /> %s""" % (str(int(size)), self.user_type, self.user_type, name_display)
 
   @property
   def display_html_small(self):
@@ -172,3 +238,25 @@ class User(models.Model):
   @property
   def display_html_big(self):
     return self._display_html('big')
+
+  def get_and_delete_messages(self):
+    messages = []
+    for m in self.message_set.all():
+        messages.append(m.message)
+        m.delete()
+    return messages
+
+class Message(models.Model):
+  """
+  The message system is a lightweight way to queue messages for given
+  users. A message is associated with a User instance (so it is only
+  applicable for registered users). There's no concept of expiration or
+  timestamps. Messages are created by the Django admin after successful
+  actions. For example, "The poll Foo was created successfully." is a
+  message.
+  """
+  user = models.ForeignKey(User, related_name='_message_set', on_delete=models.CASCADE)
+  message = models.TextField(_('message'))
+
+  def __unicode__(self):
+    return self.message

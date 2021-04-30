@@ -2,6 +2,16 @@
 LinkedIn Authentication
 """
 
+#<<<<<<< HEAD:helios_auth/auth_systems/linkedin.py
+#=======
+#from oauthclient import client
+
+#from django.core.urlresolvers import reverse
+#from django.http import HttpResponseRedirect
+
+#from helios_auth import utils
+
+#>>>>>>> helios-rbac-repo/master:auth/auth_systems/linkedin.py
 from xml.etree import ElementTree
 
 from django.conf import settings

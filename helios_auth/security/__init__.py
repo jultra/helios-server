@@ -12,8 +12,20 @@ from django.http import HttpResponseRedirect
 # nicely update the wrapper function
 from functools import update_wrapper
 
+#<<<<<<< HEAD:helios_auth/security/__init__.py
 from . import oauth
 from helios_auth.models import User
+#=======
+#from django.http import HttpResponse, Http404, HttpResponseRedirect
+#from django.core.exceptions import *
+#from django.conf import settings
+
+#import oauth
+
+#import uuid
+
+#from helios_auth.models import *
+#>>>>>>> helios-rbac-repo/master:auth/security/__init__.py
 
 FIELDS_TO_SAVE = 'FIELDS_TO_SAVE'
 
@@ -103,6 +115,10 @@ def get_user(request):
     user_obj = User.get_by_type_and_id(user['type'], user['user_id'])
     return user_obj
   else:
+    #if request.session.has_key('CURRENT_VOTER'):
+    #    return request.session['CURRENT_VOTER'].user
+    #else:
+    #    return None
     return None  
 
 def check_csrf(request):

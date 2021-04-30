@@ -99,4 +99,42 @@ urlpatterns = [
     url(r'^/ballots/(?P<voter_uuid>[^/]+)/all$', views.voter_votes, name=names.ELECTION_BALLOTS_VOTER),
     url(r'^/ballots/(?P<voter_uuid>[^/]+)/last$', views.voter_last_vote, name=names.ELECTION_BALLOTS_VOTER_LAST),
 
+    #added by John Ultra
+    #admin
+    url(r'^/admin/view$', views.one_election_admin, name="election@admin@view"),
+    url(r'^/admin/officers/list$', views.one_election_officers_list, name="election@officers@list"),
+    url(r'^/admin/officer/new$', views.user_new, name="election@officer@new"),
+    url(r'^/admin/officer/(?P<officer_id>[^/]+)/edit$', views.user_edit, name="election@officer@edit"),
+    url(r'^/admin/officer/(?P<officer_id>[^/]+)/delete$', views.user_delete, name="election@officer@delete"),
+    url(r'^/admin/roles/list$', views.one_election_roles_list, name="election@roles@list"),
+    url(r'^/admin/role/new$', views.role_new, name="election@role@new"),
+    url(r'^/admin/role/(?P<role_id>[^/]+)/edit$', views.role_edit, name="election@role@edit"),
+    url(r'^/admin/role/(?P<role_id>[^/]+)/delete$', views.role_delete, name="election@role@delete"),
+    url(r'^/admin/validation/list$', views.one_validations_list, name="validation@policies@list"),
+    url(r'^/admin/validation/new/(?P<perm_id>[^/]+)/$', views.policy_new, name="validation@policy@new"),
+    url(r'^/admin/validation/edit/(?P<val_id>[^/]+)$', views.policy_edit, name="validation@policy@edit"),
+    url(r'^/admin/validation/delete/(?P<val_id>[^/]+)$', views.policy_delete, name="validation@policy@delete"),
+    url(r'^/admin/validation/details/(?P<val_id>[^/]+)$', views.policy_details, name="validation@policy@details"),
+    url(r'^/admin/validation/requests$', views.requests_list, name="validation@requests@list"),
+    url(r'^/admin/validation/requests_ballot$', views.requests_ballot, name="ballot@requests"),
+    url(r'^/admin/validation/ballot_req_details/(?P<vr_id>[^/]+)$', views.ballot_req_details, name="ballot@request@details"),
+    url(r'^/admin/validation/requests_voters$', views.requests_voters, name="voter@requests"),
+    url(r'^/admin/validation/voter_req_details/(?P<vr_id>[^/]+)$', views.voter_req_details, name="voter@request@details"),
+    url(r'^/admin/validation/requests_trustee$', views.requests_trustees),
+    url(r'^/admin/validation/other_requests$', views.other_requests, name="other@requests"),
+    url(r'^/admin/validation/request_details/(?P<vr_id>[^/]+)$', views.request_details, name="request@details"),
+    url(r'^/admin/validation/approve_request/(?P<vr_id>[^/]+)$', views.approve_request),
+    url(r'^/admin/validation/reject_request/(?P<vr_id>[^/]+)$', views.reject_request),
+    url(r'^/admin/validation/ignore_request/(?P<vr_id>[^/]+)$', views.ignore_request),
+    
+    url(r'^/verify_object/(?P<uuid>[^/]+)$', views.verify_object_by_uuid),
+    
+    #saving ballot/questions
+    #(r'^/save_questions/(?P<vr_id>[^/]+)$', one_election_save_questions),
+    
+    # any other case!
+    url(r'^/(?P<caller>[^/]+)/(?P<vr_id>[^/]+)$', views.one_election),
+    
+    #test urls
+    url(r'^/questions_s$', views.election_questions),
 ]

@@ -72,7 +72,22 @@
 
 
   <!-- Main Page Content and Sidebar -->
-
+  
+        {% if officer %}
+        <div id="user-info">
+			<span>You are logged in as {{user.display_html_small|safe}}, 
+					{%for role in officer.electionrole.all%}
+						<span style="color:darkgreen;font-size:1.2em;"> {{role}}</span>
+						{%if forloop.last%}
+						{%else%}
+						and
+						{%endif%}
+					{%empty%}
+						Observer
+					{%endfor%}
+					of this election. </span>        	
+        </div>
+        {% endif %}
   <div class="row" id="contentbody">
       {% block content %}{% endblock %}
   </div>
@@ -97,6 +112,8 @@
     not logged in. <a class="tiny button" href="{{settings.SECURE_URL_HOST}}{% url "auth@index" %}?return_url={{CURRENT_URL}}">log in</a>
 {% else %}
 powered by <a href="http://heliosvoting.org">Helios Voting</a>.
+</span>
+<br />
 {% endif %}
     {% endif %}
     {% endif %}

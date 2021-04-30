@@ -14,12 +14,14 @@ def get_from_env(var, default):
     else:
         return default
 
-DEBUG = (get_from_env('DEBUG', '1') == '1')
+#DEBUG = (get_from_env('DEBUG', '1') == '1')
 
+DEBUG = True
 # add admins of the form: 
 #    ('Ben Adida', 'ben@adida.net'),
 # if you want to be emailed about errors.
 ADMINS = (
+    ('John Ultra', 'jdultra@up.edu.ph'),
 )
 
 MANAGERS = ADMINS
@@ -54,7 +56,7 @@ if get_from_env('DATABASE_URL', None):
 # although not all choices may be available on all operating systems.
 # If running in a Windows environment this must be set to the same as your
 # system time zone.
-TIME_ZONE = 'America/Los_Angeles'
+TIME_ZONE = 'Asia/Manila'
 
 # Language code for this installation. All choices can be found here:
 # http://www.i18nguy.com/unicode/language-identifiers.html
@@ -81,13 +83,14 @@ MEDIA_URL = ''
 STATIC_URL = '/media/'
 
 # Make this unique, and don't share it with anybody.
-SECRET_KEY = get_from_env('SECRET_KEY', 'replaceme')
+SECRET_KEY = get_from_env('SECRET_KEY', 'akij18s9shbaml102kjehes4a1krbqvi87301')
 
 # If debug is set to false and ALLOWED_HOSTS is not declared, django raises  "CommandError: You must set settings.ALLOWED_HOSTS if DEBUG is False."
 # If in production, you got a bad request (400) error
 #More info: https://docs.djangoproject.com/en/1.7/ref/settings/#allowed-hosts (same for 1.6)
 
 ALLOWED_HOSTS = get_from_env('ALLOWED_HOSTS', 'localhost').split(",")
+
 
 # Secure Stuff
 if get_from_env('SSL', '0') == '1':
@@ -122,8 +125,15 @@ MIDDLEWARE = [
 
     'django.middleware.common.CommonMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
 ]
+
+#TEMPLATE_CONTEXT_PROCESSORS = (
+#    'django.contrib.messages.context_processors.messages',
+#)
+
+MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
 
 ROOT_URLCONF = 'urls'
 
@@ -141,8 +151,11 @@ TEMPLATES = [
             # os.path.join(ROOT_PATH, 'server_ui/templates'),  # covered by APP_DIRS:True
         ],
         'OPTIONS': {
-            'debug': DEBUG
-        }
+            'debug': DEBUG,
+            'context_processors': [
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
     },
 ]
 
@@ -151,30 +164,42 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
+    'django.contrib.messages',
     ## HELIOS stuff
     'helios_auth',
+#    'django.contrib.auth',
+   
+    ## needed for queues
+    ## needed for schema migration
+    ## HELIOS stuff
+#    'messages',
     'helios',
     'server_ui',
 )
+
+#MESSAGE_STORAGE = 'django.contrib.messages.storage.session.SessionStorage'
+
 
 ##
 ## HELIOS
 ##
 
 
-MEDIA_ROOT = ROOT_PATH + "media/"
+
+MEDIA_ROOT = ROOT_PATH + "/media/"
 
 # a relative path where voter upload files are stored
 VOTER_UPLOAD_REL_PATH = "voters/%Y/%m/%d"
 
 
 # Change your email settings
-DEFAULT_FROM_EMAIL = get_from_env('DEFAULT_FROM_EMAIL', 'ben@adida.net')
-DEFAULT_FROM_NAME = get_from_env('DEFAULT_FROM_NAME', 'Ben for Helios')
+DEFAULT_FROM_EMAIL = get_from_env('DEFAULT_FROM_EMAIL', 'Hvoting Admin Officer')
+DEFAULT_FROM_NAME = get_from_env('DEFAULT_FROM_NAME', 'Voting Administrator')
 SERVER_EMAIL = '%s <%s>' % (DEFAULT_FROM_NAME, DEFAULT_FROM_EMAIL)
 
-LOGIN_URL = '/auth/'
 LOGOUT_ON_CONFIRMATION = True
+LOGIN_URL = '/auth/'
+
 
 # The two hosts are here so the main site can be over plain HTTP
 # while the voting URLs are served over SSL.
@@ -184,6 +209,12 @@ URL_HOST = get_from_env("URL_HOST", "http://localhost:8000").rstrip("/")
 # elections, as your elections' cast_url will then be incorrect.
 # SECURE_URL_HOST = "https://localhost:8443"
 SECURE_URL_HOST = get_from_env("SECURE_URL_HOST", URL_HOST).rstrip("/")
+#SECURE_URL_HOST = get_from_env("SECURE_URL_HOST", "http://localhost:80")
+
+# this additional host is used to iframe-isolate the social buttons,
+# which usually involve hooking in remote JavaScript, which could be
+# a security issue. Plus, if there's a loading issue, it blocks the whole
+# page. Not cool.
 
 # election stuff
 SITE_TITLE = get_from_env('SITE_TITLE', 'Helios Voting')
@@ -196,16 +227,52 @@ FOOTER_LOGO_URL = get_from_env('FOOTER_LOGO_URL', None)
 
 WELCOME_MESSAGE = get_from_env('WELCOME_MESSAGE', "This is the default message")
 
-HELP_EMAIL_ADDRESS = get_from_env('HELP_EMAIL_ADDRESS', 'help@heliosvoting.org')
+HELP_EMAIL_ADDRESS = get_from_env('HELP_EMAIL_ADDRESS', 'johnultra@ymail.com')
 
 AUTH_TEMPLATE_BASE = "server_ui/templates/base.html"
 HELIOS_TEMPLATE_BASE = "server_ui/templates/base.html"
-HELIOS_ADMIN_ONLY = False
+HELIOS_ADMIN_ONLY = True
 HELIOS_VOTERS_UPLOAD = True
 HELIOS_VOTERS_EMAIL = True
 
+# set the name of the default Election Administrator role
+ELECTION_ADMIN_ROLE = "Election Administrator"
+
+#set the default set of permissions of the Election Administrator role
+"""
+Possible Permission Values
+***************************
+"upload_voterfile" - User Can Upload Voters from a voter file. By Helios design, only way to add voters to an election.
+"delete_voter" - User can delete a voter, previously uploaded.
+"add_trustee" - User can add election trustee. An election trustee is involced in the decryption of voters encrypted ballots.
+"delete_trustee" - User can delete election trustee.
+"add_electionofficer" - User can add an election officer to an election.
+"change_electionofficer" - User can change election officer.
+"delete_electionofficer" - User can remove an election officer from an election. 
+"add_electionrole" - User can add an election role. 
+"change_electionrole" - User can change an election role.
+"delete_electionrole" - User can delete an election role. 
+"define_ballot" - User can create and modify the ballot for an election.
+"open_election" - User can start the election voting process.
+"close_election" - User can stop the election voting process and commence the start of canvassing.
+"change_election" - User can modify election information i.e. name, and other election attributes. 
+"can_send_trustee_url" - User can send the trustee login information
+"can_release_election_results" - User can release election results after it had been decrypted by the trustees.
+"define_ballot" - User can create or define the election's official ballot. 
+"add_policy" - User can create validation policy of a permission.
+"delete_policy" - User can delete validation policy of a permission.
+"change_policy" - User can edit validation policy of a permission.
+"""
+ELECTION_ADMIN_PERMS = ['add_electionofficer', 'change_electionofficer', 'delete_electionofficer',
+                               'add_electionrole', 'change_electionrole', 'delete_electionrole',
+                               'change_election', 'add_policy', 'delete_policy', 'change_policy',
+                               'add_trustee', 'delete_trustee', 'can_send_trustee_url']
+
+
+
+
 # are elections private by default?
-HELIOS_PRIVATE_DEFAULT = False
+HELIOS_PRIVATE_DEFAULT = True
 
 # authentication systems enabled
 # AUTH_ENABLED_SYSTEMS = ['password','facebook','twitter', 'google', 'yahoo']
@@ -247,11 +314,11 @@ CLEVER_CLIENT_ID = get_from_env('CLEVER_CLIENT_ID', "")
 CLEVER_CLIENT_SECRET = get_from_env('CLEVER_CLIENT_SECRET', "")
 
 # email server
-EMAIL_HOST = get_from_env('EMAIL_HOST', 'localhost')
-EMAIL_PORT = int(get_from_env('EMAIL_PORT', "2525"))
+EMAIL_HOST = get_from_env('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(get_from_env('EMAIL_PORT', "465"))
 EMAIL_HOST_USER = get_from_env('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = get_from_env('EMAIL_HOST_PASSWORD', '')
-EMAIL_USE_TLS = (get_from_env('EMAIL_USE_TLS', '0') == '1')
+EMAIL_HOST_PASSWORD = get_from_env('EMAIL_HOST_PASSWORD', None)
+EMAIL_USE_SSL = (get_from_env('EMAIL_USE_SSL', '1') == '1')
 
 # to use AWS Simple Email Service
 # in which case environment should contain

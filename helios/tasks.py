@@ -9,9 +9,14 @@ from celery import shared_task
 from celery.utils.log import get_logger
 
 from . import signals
-from .models import CastVote, Election, Voter, VoterFile
+from .models import CastVote, Election, Voter, VoterFile, ElectionOfficer, ValidationPolicy
 from .view_utils import render_template_raw
 
+#added by John
+from helios_auth.security import get_user
+from helios.models import ValidationRequest
+from helios_auth.models import User
+import helios
 
 @shared_task
 def cast_vote_verify_and_store(cast_vote_id, status_update_message=None, **kwargs):
@@ -90,9 +95,12 @@ def election_compute_tally(election_id):
     election = Election.objects.get(id=election_id)
     election.compute_tally()
 
-    election_notify_admin.delay(election_id=election_id,
-                                subject="encrypted tally computed",
-                                body="""
+#    election_notify_admin.delay(election_id=election_id,
+#                                subject="encrypted tally computed",
+#                                body=""""""
+    election_notify_all_officers.delay(election_id = election_id,
+                                subject = "encrypted tally computed",
+                                body = """
 The encrypted tally for election %s has been computed.
 
 --
@@ -107,9 +115,13 @@ Helios
 def tally_helios_decrypt(election_id):
     election = Election.objects.get(id=election_id)
     election.helios_trustee_decrypt()
-    election_notify_admin.delay(election_id=election_id,
-                                subject='Helios Decrypt',
-                                body="""
+#<<<<<<< HEAD
+#    election_notify_admin.delay(election_id=election_id,
+#                                subject='Helios Decrypt',
+#                                body="""
+    election_notify_all_officers.delay(election_id = election_id,
+                                subject = 'Helios Decrypt',
+                                body = """
 Helios has decrypted its portion of the tally
 for election %s.
 
@@ -119,12 +131,63 @@ Helios
 
 
 @shared_task
-def voter_file_process(voter_file_id):
-    voter_file = VoterFile.objects.get(id=voter_file_id)
-    voter_file.process()
-    election_notify_admin.delay(election_id=voter_file.election.id,
-                                subject='voter file processed',
-                                body="""
+def voter_file_process(user_id, voter_file_id, v_policy_id = None):
+    
+    voter_file = VoterFile.objects.get(id = voter_file_id)
+    
+    
+    #start time of voter file processing
+    voter_file.start_processing()
+    
+    registrants = voter_file.registrants()
+    
+    election = voter_file.election
+    user = User.objects.get(id=user_id)
+
+        
+    if v_policy_id:
+        v_policy = ValidationPolicy.objects.get(id=v_policy_id)
+        for registrant in registrants:
+            
+            if not ValidationRequest.voter_v_request_exists_by_election(election, registrant.voter_name, registrant.voter_email):
+                data = {'old_obj':{},
+                        'input':registrant.toJSONDict(),
+                        'output':registrant.toJSONDict()}
+                
+                #prepare data for the validation request creation
+                req_data = { 'uuid' : registrant.uuid,
+                        'data': data,
+                        'action' : Voter.ADD,
+                        'modeltype': helios.VOTER,
+                        'vp' : v_policy
+                      }
+                #create the validation request for this registrant
+                ValidationRequest.create(user, election, req_data=req_data)
+    else:
+        for registrant in registrants:
+            if not ValidationRequest.voter_v_request_exists_by_election(election, registrant.voter_name, registrant.voter_email):
+                #prepare data for the validation request creation
+                data = {'old_obj':{},
+                        'input':registrant.toJSONDict(),
+                        'output':registrant.toJSONDict()}
+                req_data = { 'uuid' : registrant.uuid,
+                        'data': data,
+                        'action' : Voter.ADD,
+                        'modeltype': helios.VOTER,
+                        'vp' : None
+                      }
+                #create the validation request for this registrant
+                v_request = ValidationRequest.create(user, election, req_data=req_data)
+                registrant.save()
+                v_request.commit()
+        
+        #voter_file.process()
+        
+    voter_file.end_processing()
+    
+    election_notify_admin.delay(user_id = user.id, election_id = voter_file.election.id, 
+                                subject = 'voter file processed',
+                                body = """
 Your voter file upload for election %s
 has been processed.
 
@@ -136,6 +199,20 @@ Helios
 
 
 @shared_task
-def election_notify_admin(election_id, subject, body):
-    election = Election.objects.get(id=election_id)
-    election.admin.send_message(subject, body)
+def election_notify_admin(user_id, election_id, subject, body):
+    #election = Election.objects.get(id = election_id)
+    #election.admin.send_message(subject, body)
+    user = User.objects.get(id = user_id)
+    user.send_message(subject, body)
+
+@shared_task()
+def election_notify_all_officers(election_id, subject, body):
+    officers = ElectionOfficer.get_by_election_id(election_id)
+    
+    for officer in officers:
+        election_notify_an_officer.delay(officer, election_id, subject, body)
+    
+@shared_task()
+def election_notify_an_officer(officer_id, election_id, subject, body):
+    officer = ElectionOfficer.objects.filter(id=officer_id)[0]
+    officer.user.send_message(subject, body)
