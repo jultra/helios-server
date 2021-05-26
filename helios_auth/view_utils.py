@@ -44,9 +44,9 @@ def prepare_vars(request, vars):
 def render_template(request, template_name, values = None):
  # t = loader.get_template(template_name + '.html')
 
-  messages = get_messages(request)
+  #messages = get_messages(request)
   
-  vars_with_user = prepare_vars(request, messages, values or {})
+  vars_with_user = prepare_vars(request, values or {})
   
   return render(request, 'helios_auth/templates/%s.html' % template_name, context=vars_with_user)
   
