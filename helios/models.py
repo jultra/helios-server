@@ -753,13 +753,13 @@ class VoterFile(models.Model):
       # we do this in a simple way: replace all \r with \n
       # then, replace all double \n with single \n
       # this should leave us with only \n
-      content = content.replace(b'\r',b'\n').replace(b'\n\n',b'\n')
+      content = content.replace(b'\r',b'\n').replace(b'\n\n',b'\n').decode("utf-8-sig").encode("utf-8")
 
       close = False
       voter_stream = io.BytesIO(content)
     else:
       close = True
-      voter_stream = open(self.voter_file.path, "rb")
+      voter_stream = open(self.voter_file.path, "U")
 
     #reader = unicode_csv_reader(voter_stream)
     reader = unicodecsv.reader(voter_stream, encoding='utf-8')
@@ -773,7 +773,7 @@ class VoterFile(models.Model):
       voter_id = voter_fields[1].strip()
 
       if not voter_type in AUTH_SYSTEMS:
-        raise Exception("invalid voter type '%s' for voter id '%s'" % (voter_type, voter_id))
+        raise Exception("invalid voter type '%s' for voter id '%s', available voter types are %s" % (voter_type, voter_id, ",".join(AUTH_SYSTEMS.keys())))
 
       # default to having email be the same as voter_id
       voter_email = voter_id
@@ -818,6 +818,7 @@ class VoterFile(models.Model):
           new_voter = Voter(uuid=voter_uuid, user = None, voter_login_id = voter['voter_id'],
               voter_name = voter['name'], voter_email = voter['email'], election = self.election)
           new_voter.generate_password()
+          election=self.election
           if election.use_voter_aliases:
               utils.lock_row(Election, election.id)
               alias_num = election.last_alias_num + 1
