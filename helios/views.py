@@ -1101,7 +1101,7 @@ def one_election_archive(request, election, **kw):
   return HttpResponseRedirect(settings.SECURE_URL_HOST + reverse(url_names.election.ELECTION_VIEW, args=[election.uuid]))
   
 @election_admin(perm_needed='copy_election')
-def one_election_copy(request, election):
+def one_election_copy(request, election, **kw):
   # FIXME: make this a POST and CSRF protect it
   # check_csrf(request)
   
