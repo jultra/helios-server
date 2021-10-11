@@ -17,7 +17,6 @@ from django.core.paginator import Paginator
 from django.db import transaction, IntegrityError
 from django.http import HttpResponse, Http404, HttpResponseRedirect, HttpResponseForbidden
 from django.urls import reverse
-from validate_email import validate_email
 
 
 import helios
@@ -192,6 +191,14 @@ def _castvote_shortcut_by_election(request, election, cast_vote):
 def castvote_shortcut(request, vote_tinyhash):
   try:
     cast_vote = CastVote.objects.get(vote_tinyhash = vote_tinyhash)
+  except CastVote.DoesNotExist:
+    raise Http404
+
+  return _castvote_shortcut_by_election(request, election_uuid = cast_vote.voter.election.uuid, cast_vote=cast_vote)
+
+def castvote_fullhash_shortcut(request, vote_hash):
+  try:
+    cast_vote = CastVote.objects.get(vote_hash = vote_hash)
   except CastVote.DoesNotExist:
     raise Http404
 
@@ -1012,6 +1019,7 @@ def voter_delete(request, election, voter_uuid, **kw):
     data = {'old_obj': voter.toJSONDict(update=True),
             'input':{},
             'output':{}}
+    print(data)
     try:
         v_policy = ValidationPolicy.get_by_election_and_perm(election, perm_codename=kw['perm_needed'])
         req_data = {'uuid':voter.uuid,
@@ -1053,7 +1061,8 @@ Helios
       # log it
       election.append_log("Voter %s/%s removed after election frozen" % (voter.voter_type,voter.voter_id))
 
-    voter.delete()
+    #double delete
+    #voter.delete()
           
   return HttpResponseRedirect(settings.SECURE_URL_HOST + reverse(voters_list_pretty, args=[election.uuid]))
 
@@ -1614,10 +1623,8 @@ def voters_eligibility(request, election):
 @election_admin(perm_needed='upload_voterfile')
 def voters_upload(request, election, **kw):
   """
-  Upload a CSV of password-based voters with
-  voter_id, email, name
-  
-  name and email are needed only if voter_type is static
+  Upload a CSV of voters with
+  voter_type, voter_id, optional_additional_params (e.g. email, name)
   """
 
   ## TRYING this: allowing voters upload by admin when election is frozen
@@ -1629,7 +1636,7 @@ def voters_upload(request, election, **kw):
     
   if request.method == "POST":
     if bool(request.POST.get('confirm_p', 0)):
-      
+      print("Upload voter file")
       
       try:
           v_policy = ValidationPolicy.get_by_election_and_perm(election, perm_codename=kw['perm_needed'])
@@ -1654,13 +1661,11 @@ def voters_upload(request, election, **kw):
         # import the first few lines to check
         try:
           voters = [v for v in voter_file_obj.itervoters()][:5]
-        except:
+          if len(voters) == 0:
+            raise Exception("no valid lines found in voter file")
+        except Exception as e:
           voters = []
-          problems.append("your CSV file could not be processed. Please check that it is a proper CSV file.")
-
-        # check if voter emails look like emails
-        if False in [validate_email(v['email']) for v in voters]:
-          problems.append("those don't look like correct email addresses. Are you sure you uploaded a file with email address as second field?")
+          problems.append("your CSV file could not be processed because %s" % str(e))
 
         return render_template(request, 'voters_upload_confirm', {'election': election, 'voters': voters, 'problems': problems})
       else:

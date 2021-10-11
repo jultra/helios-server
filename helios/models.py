@@ -17,6 +17,7 @@ import unicodecsv
 from django.conf import settings
 
 from django.db import models, transaction
+from validate_email import validate_email
 
 from helios import datatypes
 from helios import utils
@@ -57,13 +58,8 @@ from .crypto.utils import random, hash_b64
 #quick and dirty hack import
 import helios
 
-
-#<<<<<<< HEAD
-#=======
 import csv, copy
 
-  
-#>>>>>>> helios-rbac-repo/master
 
 class HeliosModel(models.Model, datatypes.LDObjectContainer):
   class Meta:
@@ -114,9 +110,6 @@ class HeliosModel(models.Model, datatypes.LDObjectContainer):
       return True
   
 class Election(HeliosModel):
-#<<<<<<< HEAD
-#  admin = models.ForeignKey(User, on_delete=models.CASCADE)
-#=======
 
   OPEN = 'open election'
   CLOSE = 'close election and start tallying votes'
@@ -128,7 +121,7 @@ class Election(HeliosModel):
   
   #other election administrators and officers  
   election_officers = models.ManyToManyField(User, through='ElectionOfficer')
-#>>>>>>> helios-rbac-repo/master
+
   
   
   uuid = models.CharField(max_length=50, null=False, unique=True)
@@ -485,9 +478,6 @@ class Election(HeliosModel):
   @property
   def issues_before_freeze(self):
     issues = []
-#<<<<<<< HEAD
-#    if self.questions is None or len(self.questions) == 0:
-#=======
     
     unassigned_perms = Permission.get_unassigned_permissions_by_election(self) 
     if unassigned_perms:
@@ -504,7 +494,7 @@ class Election(HeliosModel):
              }
             )
     if self.questions is None or len(self.questions) == 0:
-#>>>>>>> helios-rbac-repo/master
+
       issues.append(
         {'type': 'questions',
          'action': "add questions to the ballot"}
@@ -885,79 +875,92 @@ class VoterFile(models.Model):
       # we do this in a simple way: replace all \r with \n
       # then, replace all double \n with single \n
       # this should leave us with only \n
-      content = content.replace(b'\r',b'\n').replace(b'\n\n',b'\n')
+      content = content.replace(b'\r',b'\n').replace(b'\n\n',b'\n').decode("utf-8-sig").encode("utf-8")
 
       close = False
       voter_stream = io.BytesIO(content)
     else:
       close = True
-      voter_stream = open(self.voter_file.path, "rb")
+      voter_stream = open(self.voter_file.path, "U")
 
     #reader = unicode_csv_reader(voter_stream)
     reader = unicodecsv.reader(voter_stream, encoding='utf-8')
 
     for voter_fields in reader:
       # bad line
-      if len(voter_fields) < 1:
+      if len(voter_fields) < 2:
         continue
-    
-      return_dict = {'voter_id': voter_fields[0].strip()}
 
-      if len(voter_fields) > 1:
-        return_dict['email'] = voter_fields[1].strip()
-      else:
-        # assume single field means the email is the same field
-        return_dict['email'] = voter_fields[0].strip()
+      voter_type = voter_fields[0].strip()
+      voter_id = voter_fields[1].strip()
 
+      if not voter_type in AUTH_SYSTEMS:
+        raise Exception("invalid voter type '%s' for voter id '%s', available voter types are %s" % (voter_type, voter_id, ",".join(AUTH_SYSTEMS.keys())))
+
+      # default to having email be the same as voter_id
+      voter_email = voter_id
       if len(voter_fields) > 2:
-        return_dict['name'] = voter_fields[2].strip()
-      else:
-        return_dict['name'] = return_dict['email']
+        # but if it's supplied, it will be the 3rd field.
+        voter_email = voter_fields[2].strip()
+      if voter_type == "password" and not validate_email(voter_email):
+        raise Exception("invalid voter email '%s' for voter id '%s'" % (voter_email, voter_id))
 
-      yield return_dict
+      # same thing for voter display name.
+      voter_name = voter_email
+      if len(voter_fields) > 3:
+        # which is supplied as the 4th field if known.
+        voter_name = voter_fields[3].strip()
+
+      yield {
+        'voter_type': voter_type,
+        'voter_id': voter_id,
+        'email': voter_email,
+        'name': voter_name,
+      }
+
     if close:
       voter_stream.close()
-    
+
   def process(self):
     self.processing_started_at = datetime.datetime.utcnow()
     self.save()
 
-    election = self.election    
-    last_alias_num = election.last_alias_num
+    voters = list(self.itervoters())
+    self.num_voters = len(voters)
+    random.shuffle(voters)
 
-    num_voters = 0
-    new_voters = []
-    for voter in self.itervoters():
-      num_voters += 1
-    
-      # does voter for this user already exist
-      existing_voter = Voter.get_by_election_and_voter_id(election, voter['voter_id'])
-    
-      # create the voter
-      if not existing_voter:
-        voter_uuid = str(uuid.uuid4())
-        existing_voter = Voter(uuid= voter_uuid, user = None, voter_login_id = voter['voter_id'],
-                      voter_name = voter['name'], voter_email = voter['email'], election = election)
-        existing_voter.generate_password()
-        new_voters.append(existing_voter)
-        existing_voter.save()
+    for voter in voters:
+      if voter['voter_type'] == 'password':
+          # does voter for this user already exist
+          existing_voter = Voter.get_by_election_and_voter_id(self.election, voter['voter_id'])
+          if existing_voter:
+              continue
+          # create the voter
+          voter_uuid = str(uuid.uuid4())
+          new_voter = Voter(uuid=voter_uuid, user = None, voter_login_id = voter['voter_id'],
+              voter_name = voter['name'], voter_email = voter['email'], election = self.election)
+          new_voter.generate_password()
+          election=self.election
+          if election.use_voter_aliases:
+              utils.lock_row(Election, election.id)
+              alias_num = election.last_alias_num + 1
+              new_voter.alias = "V%s" % alias_num
+          new_voter.save()
+      else:
+          user, _ = User.objects.get_or_create(user_type=voter['voter_type'], user_id=voter['voter_id'], defaults = {'name': voter['voter_id'], 'info': {}, 'token': None})
+          existing_voter = Voter.get_by_election_and_user(self.election, user)
+          if not existing_voter:
+              Voter.register_user_in_election(user, self.election)
 
-    if election.use_voter_aliases:
-      voter_alias_integers = list(range(last_alias_num+1, last_alias_num+1+num_voters))
-      random.shuffle(voter_alias_integers)
-      for i, voter in enumerate(new_voters):
-        voter.alias = 'V%s' % voter_alias_integers[i]
-        voter.save()
-
-    self.num_voters = num_voters
     self.processing_finished_at = datetime.datetime.utcnow()
     self.save()
 
-    return num_voters
+    return self.num_voters
 
   def registrants(self):
     #self.processing_started_at = datetime.datetime.utcnow()
     #self.save()
+    print("Inside voter file registrants")
 
     election = self.election
 
@@ -994,15 +997,15 @@ class VoterFile(models.Model):
         continue
     
       num_voters += 1
-      voter_id = voter[0].strip()
+      voter_id = voter[1].strip()
       name = voter_id
       email = voter_id
     
       if len(voter) > 1:
-        email = voter[1].strip()
+        email = voter[2].strip()
     
       if len(voter) > 2:
-        name = voter[2].strip()
+        name = voter[3].strip()
     
       # create the user -- NO MORE
       # user = User.update_or_create(user_type='password', user_id=email, info = {'name': name})
@@ -1044,7 +1047,7 @@ class VoterFile(models.Model):
   def end_processing(self):
     self.processing_finished_at = datetime.datetime.utcnow()
     self.save()
-    
+
 class Voter(HeliosModel):
     
   DELETE = 'delete voter'
@@ -1250,6 +1253,7 @@ class Voter(HeliosModel):
   def create_from_vrequest(cls, v_request):
     election = Election.get_by_uuid(v_request.election_uuid) 
     data = v_request.data['input']
+    print("Voter:" + data)
     
     #field_names = cls.field_names()
     #new_voter = cls()

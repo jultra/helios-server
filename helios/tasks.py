@@ -70,6 +70,7 @@ def single_voter_email(voter_uuid, subject_template, body_template, extra_vars={
     voter = Voter.objects.get(uuid=voter_uuid)
 
     the_vars = copy.copy(extra_vars)
+    the_vars.update({'election': voter.election})
     the_vars.update({'voter': voter})
 
     subject = render_template_raw(None, subject_template, the_vars)
@@ -143,8 +144,7 @@ def voter_file_process(user_id, voter_file_id, v_policy_id = None):
     
     election = voter_file.election
     user = User.objects.get(id=user_id)
-
-        
+    print("Inside voter file process")
     if v_policy_id:
         v_policy = ValidationPolicy.objects.get(id=v_policy_id)
         for registrant in registrants:
@@ -164,7 +164,9 @@ def voter_file_process(user_id, voter_file_id, v_policy_id = None):
                 #create the validation request for this registrant
                 ValidationRequest.create(user, election, req_data=req_data)
     else:
+        print("Inside no validation policy")
         for registrant in registrants:
+
             if not ValidationRequest.voter_v_request_exists_by_election(election, registrant.voter_name, registrant.voter_email):
                 #prepare data for the validation request creation
                 data = {'old_obj':{},

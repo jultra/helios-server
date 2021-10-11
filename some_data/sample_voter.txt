@@ -1,2 +1,2 @@
-jultra,johnultra@ymail.com, John Ultra
-juan, j0hnnultra@gmail.com, Juan Tamad
+password,juan2,johnultra@ymail.com, John Ultra
+password,juan,j0hnnultra@gmail.com, Juan Tamad
