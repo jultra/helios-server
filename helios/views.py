@@ -1430,7 +1430,7 @@ def trustee_upload_decryption(request, election, trustee_uuid):
     return FAILURE
 
 @election_admin(frozen=True, perm_needed='can_release_election_results')
-def release_result(request, election):
+def release_result(request, election, **kw):
   """
   result is computed and now it's time to release the result
   """

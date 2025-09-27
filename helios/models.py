@@ -103,7 +103,7 @@ class HeliosModel(models.Model, datatypes.LDObjectContainer):
       
       #traverse the cleaned vr list, checking if the 'output' of a validation request 
       #is THE SAME as 'old_obj' of the validation request succeeding it.  
-      for i in xrange(length-1):
+      for i in range(length-1):
           if not cleaned_vr_list[i].data['output'] == cleaned_vr_list[i+1].data['old_obj']:
               return False
       

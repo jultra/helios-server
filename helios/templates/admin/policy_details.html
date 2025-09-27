@@ -14,7 +14,7 @@
 {% include "info-messages.html" %}
 <div id="admin_content">
 	<span id="options">
-		<a href="{% url helios.views.policy_edit election.uuid, policy.id %}"> edit policy</a>
+		<a href="{% url "validation@policy@edit" election.uuid, policy.id %}"> edit policy</a>
 	</span>	
 <div id="policy">
 	<fieldset style="padding: 10px 10px 10px 10px; margin: 20px 20px 20px 20px">
